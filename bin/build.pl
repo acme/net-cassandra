@@ -16,6 +16,7 @@ my $cassandra_trunk_dir  = dir( cwd, 'cassandra-trunk' );
 my $cassandra_class
     = dir( cwd, 'cassandra-trunk', 'build', 'classes', 'org', 'apache',
     'cassandra', 'service', 'CassandraDaemon.class' );
+my $gen_perl_dir = dir( cwd, 'gen-perl' );
 
 unless ( -d $thrift_trunk_dir ) {
     say 'Fetching Thrift';
@@ -65,4 +66,11 @@ unless ( -f $cassandra_class ) {
     chdir $cassandra_trunk_dir;
     system "ant";
     die 'Failed to build' unless -f $cassandra_class;
+}
+
+unless ( -d $gen_perl_dir ) {
+    say 'Generating Perl bindings';
+    system
+        "$thrift_installed_dir/bin/thrift --gen perl $cassandra_trunk_dir/interface/cassandra.thrift";
+    die 'Failed to generate' unless -d $gen_perl_dir;
 }
