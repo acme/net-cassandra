@@ -1,11 +1,11 @@
 .git
-
 blib
 cassandra-trunk
 gen-perl
 Makefile$
 MANIFEST.bak
 MANIFEST.SKIP
+Net-Cassandra-
 pm_to_blib
 thrift
 thrift-trunk
