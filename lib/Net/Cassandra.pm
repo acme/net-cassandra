@@ -7,6 +7,8 @@ use Net::Cassandra::Backend::Thrift::Socket;
 use Net::Cassandra::Backend::Thrift::BufferedTransport;
 use Net::Cassandra::Backend::Thrift::BinaryProtocol;
 
+our $VERSION = '0.33';
+
 has 'hostname' => ( is => 'ro', isa => 'Str', default => 'localhost' );
 has 'port'     => ( is => 'ro', isa => 'Int', default => 9160 );
 has 'client'   => (
