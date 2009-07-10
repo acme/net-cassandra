@@ -37,3 +37,52 @@ sub _build_client {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Net::Cassandra - Interface to Cassandra
+
+=head1 SYNOPSIS
+
+  my $cassandra = Net::Cassandra->new;
+  my $client    = $cassandra->client;
+
+  my $key       = '123';
+  my $timestamp = time;
+
+  eval {
+      $client->insert( 'Table1', $key, 'Standard1:name', 'Leon Brocard',
+          $timestamp, 0 );
+  };
+  die $@->why if $@;
+
+  eval {
+      $client->remove( 'Table1', $key, 'Standard1:age', $timestamp );
+  };
+  die $@->why if $@;
+
+  my $column;
+  eval { $column = $client->get_column( 'Table1', $key, 'Standard1:name' ); };
+  die $@->why if $@;
+  say $column->{columnName}, ', ', $column->{value}, ', ', $column->{timestamp};
+
+=head1 DESCRIPTION
+
+This module provides an interface the to Cassandra distributed database.
+It uses the Thrift interface. This is changing rapidly and supports the
+development version of Cassandra built from Subversion trunk.
+
+=head1 AUTHOR
+
+Leon Brocard <acme@astray.com>.
+
+=head1 COPYRIGHT
+
+Copyright (C) 2009, Leon Brocard
+
+=head1 LICENSE
+
+This module is free software; you can redistribute it or modify it
+under the same terms as Perl itself.
