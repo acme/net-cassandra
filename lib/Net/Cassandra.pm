@@ -15,6 +15,8 @@ has 'client'   => (
     lazy_build => 1
 );
 
+__PACKAGE__->meta->make_immutable;
+
 sub _build_client {
     my $self = shift;
 
