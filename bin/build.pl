@@ -19,8 +19,9 @@ my $cassandra_trunk_dir  = dir( cwd, 'cassandra-trunk' );
 my $cassandra_class
     = dir( cwd, 'cassandra-trunk', 'build', 'classes', 'org', 'apache',
     'cassandra', 'service', 'CassandraDaemon.class' );
-my $gen_perl_dir = dir( cwd, 'gen-perl' );
-my $perl_dir = dir( cwd, 'lib', 'Net', 'Cassandra', 'Backend' );
+my $gen_perl_dir    = dir( cwd, 'gen-perl' );
+my $perl_dir        = dir( cwd, 'lib', 'Net', 'Cassandra', 'Backend' );
+my $thrift_perl_dir = dir( cwd, 'thrift-trunk', 'lib', 'perl', 'lib' );
 
 unless ( -d $thrift_trunk_dir ) {
     say 'Fetching Thrift';
@@ -94,24 +95,34 @@ unless ( -f "$perl_dir/Cassandra.pm" ) {
 
     # first let's find the package names
     my %packages;
-    foreach my $source ( File::Find::Rule->new->file->in($gen_perl_dir) ) {
-        say "$source";
+    foreach my $source ( File::Find::Rule->new->file->name('*.pm')
+        ->in( $gen_perl_dir, $thrift_perl_dir ) )
+    {
+
+        #say "$source";
         my $document = PPI::Document->new($source);
         my $find
             = PPI::Find->new( sub { $_[0]->isa('PPI::Statement::Package') } );
         $find->start($document) or die "Failed to execute search";
         while ( my $package = $find->match ) {
 
-            # say $package;
+            #say $package;
             $packages{ $package->namespace } = 1;
         }
     }
-    $packages{Types} = 1;    # fake
+    $packages{Types}  = 1;    # fake
+    $packages{Thrift} = 1;    # fake
 
     # now fix up the new package names
-    foreach my $source ( File::Find::Rule->new->file->in($gen_perl_dir) ) {
+    foreach my $source ( File::Find::Rule->new->file->name('*.pm')
+        ->in( $gen_perl_dir, $thrift_perl_dir ) )
+    {
         my $destination = file( $perl_dir, file($source)->basename );
+        if ( $source =~ m{/Thrift/} ) {
+            $destination =~ s{/([^/]+?)$}{/Thrift/$1};
+        }
         say "$source -> $destination";
+
         my $document = PPI::Document->new($source);
 
         # first change the words
@@ -125,6 +136,14 @@ unless ( -f "$perl_dir/Cassandra.pm" ) {
 
                 #say "* $word";
             } else {
+                my ( $pre, $post ) = split( '::', $namespace, 2 );
+                if ( $packages{$pre} ) {
+                    $namespace
+                        = 'Net::Cassandra::Backend::' . $pre . '::' . $post;
+                    $word->set_content($namespace);
+
+                    #say "* $word";
+                }
 
                 #say $word;
             }
@@ -140,11 +159,14 @@ unless ( -f "$perl_dir/Cassandra.pm" ) {
             if ( $packages{$namespace} ) {
                 $namespace = 'Net::Cassandra::Backend::' . $namespace;
                 $word->set_content( "'" . $namespace . "'" );
-                say "** $word";
+
+                #say "** $word";
             } else {
-                say "?? $word";
+
+                #say "?? $word";
             }
         }
+        dir($destination)->parent->mkpath;
         $document->save($destination);
     }
     die 'Failed to build' unless -f "$perl_dir/Cassandra.pm";
