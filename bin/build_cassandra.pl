@@ -15,9 +15,9 @@ my $thrift_trunk_makefile  = file( $thrift_trunk_dir, 'Makefile' );
 my $thrift_trunk_thrift
     = file( $thrift_trunk_dir, 'compiler', 'cpp', 'thrift' );
 my $thrift_installed_dir = dir( cwd, 'thrift' );
-my $cassandra_trunk_dir  = dir( cwd, 'cassandra-trunk' );
+my $cassandra_trunk_dir  = dir( cwd, 'apache-cassandra-incubating-0.4.2-src' );
 my $cassandra_class
-    = dir( cwd, 'cassandra-trunk', 'build', 'classes', 'org', 'apache',
+    = dir( $cassandra_trunk_dir, 'build', 'classes', 'org', 'apache',
     'cassandra', 'service', 'CassandraDaemon.class' );
 my $gen_perl_dir    = dir( cwd, 'gen-perl' );
 my $perl_dir        = dir( cwd, 'lib', 'Net', 'Cassandra', 'Backend' );
@@ -61,6 +61,7 @@ unless ( -d $thrift_installed_dir ) {
 
 unless ( -d $cassandra_trunk_dir ) {
     say 'Fetching Cassandra';
+    die "Fetch cassandra and put it in $cassandra_trunk_dir";
     system
         "svn checkout http://svn.apache.org/repos/asf/incubator/cassandra/trunk $cassandra_trunk_dir";
     die 'Failed to fetch' unless -d $cassandra_trunk_dir;
@@ -99,20 +100,22 @@ unless ( -f "$perl_dir/Cassandra.pm" ) {
         ->in( $gen_perl_dir, $thrift_perl_dir ) )
     {
 
-        #say "$source";
+        # say "$source";
         my $document = PPI::Document->new($source);
         my $find
             = PPI::Find->new( sub { $_[0]->isa('PPI::Statement::Package') } );
         $find->start($document) or die "Failed to execute search";
         while ( my $package = $find->match ) {
-
-            #say $package;
+            # say $package->namespace;
             $packages{ $package->namespace } = 1;
         }
     }
-    $packages{Types}  = 1;    # fake
-    $packages{Thrift} = 1;    # fake
-
+    
+    $packages{'Cassandra::Types'}  = 1;    # fake
+    $packages{'Thrift'} = 1;    # fake
+    $packages{'Thrift::Socket'} = 1;    # fake
+    $packages{'Thrift::ServerTransport'} = 1;    # fake
+        
     # now fix up the new package names
     foreach my $source ( File::Find::Rule->new->file->name('*.pm')
         ->in( $gen_perl_dir, $thrift_perl_dir ) )
@@ -130,7 +133,9 @@ unless ( -f "$perl_dir/Cassandra.pm" ) {
         $find->start($document) or die "Failed to execute search";
         while ( my $word = $find->match ) {
             my $namespace = $word->content;
+
             if ( $packages{$namespace} ) {
+                $namespace =~ s/^Cassandra:://;
                 $namespace = 'Net::Cassandra::Backend::' . $namespace;
                 $word->set_content($namespace);
 
@@ -142,7 +147,7 @@ unless ( -f "$perl_dir/Cassandra.pm" ) {
                         = 'Net::Cassandra::Backend::' . $pre . '::' . $post;
                     $word->set_content($namespace);
 
-                    #say "* $word";
+                    # say "* $word";
                 }
 
                 #say $word;
@@ -160,10 +165,31 @@ unless ( -f "$perl_dir/Cassandra.pm" ) {
                 $namespace = 'Net::Cassandra::Backend::' . $namespace;
                 $word->set_content( "'" . $namespace . "'" );
 
-                #say "** $word";
+                #say "** $word" if $namespace =~ /TExcept/;
             } else {
 
-                #say "?? $word";
+                #say "?? $word" if $namespace =~ /TExcept/;
+            }
+        }
+        
+               # now try qw
+        $find = PPI::Find->new( sub { $_[0]->isa('PPI::Token::QuoteLike::Words') } );
+        $find->start($document) or die "Failed to execute search";
+        while ( my $word = $find->match ) {
+            my $namespace = $word->content;
+            $namespace =~ s/^qw\(//;
+            $namespace =~ s/\)$//;
+#         die "[$namespace] / [$word]" if $word =~ /TExcept/;
+            if ( $packages{$namespace} ) {
+                            $namespace =~ s/^Cassandra:://;
+                $namespace = 'Net::Cassandra::Backend::' . $namespace;
+                $word->set_content( 'qw(' . $namespace . ")" );
+ #               die $word if $word =~ /TExcept/;
+
+                say "** $word" if $namespace =~ /TExcept/;
+            } else {
+
+                say "?? $word" if $namespace =~ /TExcept/;
             }
         }
         dir($destination)->parent->mkpath;
