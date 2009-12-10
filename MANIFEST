@@ -11,6 +11,7 @@ lib/Net/Cassandra/Backend/Thrift/FramedTransport.pm
 lib/Net/Cassandra/Backend/Thrift/HttpClient.pm
 lib/Net/Cassandra/Backend/Thrift/MemoryBuffer.pm
 lib/Net/Cassandra/Backend/Thrift/Protocol.pm
+lib/Net/Cassandra/Backend/Thrift/Server.pm
 lib/Net/Cassandra/Backend/Thrift/Socket.pm
 lib/Net/Cassandra/Backend/Thrift/Transport.pm
 lib/Net/Cassandra/Backend/Types.pm

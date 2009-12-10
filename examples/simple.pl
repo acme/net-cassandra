@@ -5,33 +5,202 @@ use lib 'lib';
 use Net::Cassandra;
 use Perl6::Say;
 
-my $cassandra = Net::Cassandra->new;
-my $client    = $cassandra->client;
+my $cassandra = Net::Cassandra->new( hostname => 'localhost' );
+my $client = $cassandra->client;
 
 my $key       = '123';
 my $timestamp = time;
 
+#  void insert(1:required string keyspace,
+#              2:required string key,
+#              3:required ColumnPath column_path,
+#              4:required binary value,
+#              5:required i64 timestamp,
+#              6:required ConsistencyLevel consistency_level=0)
+#       throws (1: InvalidRequestException ire, 2: UnavailableException ue),
 eval {
-    $client->insert( 'Table1', $key, 'Standard1:name', 'Leon Brocard',
-        $timestamp, 0 );
+    $client->insert(
+        'Keyspace1',
+        $key,
+        Net::Cassandra::Backend::ColumnPath->new(
+            { column_family => 'Standard1', column => 'name' }
+        ),
+        'Leon Brocard',
+        $timestamp,
+        Net::Cassandra::Backend::ConsistencyLevel::ZERO
+    );
 };
 die $@->why if $@;
 
+#  void batch_insert(1:required string keyspace,
+#                    2:required string key,
+#                    3:required map<string, list<ColumnOrSuperColumn>> cfmap,
+#                    4:required ConsistencyLevel consistency_level=0)
+#       throws (1: InvalidRequestException ire, 2: UnavailableException ue),
 eval {
-
-    $client->remove( 'Table1', $key, 'Standard1:age', $timestamp );
+    $client->batch_insert(
+        'Keyspace1',
+        $key,
+        {   'Standard1' => [
+                Net::Cassandra::Backend::ColumnOrSuperColumn->new(
+                    {   column => Net::Cassandra::Backend::Column->new(
+                            {   name      => 'name',
+                                value     => 'Leon Brocard',
+                                timestamp => $timestamp,
+                            }
+                        )
+                    }
+                )
+            ],
+        },
+        Net::Cassandra::Backend::ConsistencyLevel::ZERO
+    );
 };
 die $@->why if $@;
 
-my $column;
-eval { $column = $client->get_column( 'Table1', $key, 'Standard1:name' ); };
+#  ColumnOrSuperColumn get(1:required string keyspace,
+#                          2:required string key,
+#                          3:required ColumnPath column_path,
+#                          4:required ConsistencyLevel consistency_level=1)
+#                      throws (1: InvalidRequestException ire, 2: NotFoundException nfe, 3: UnavailableException ue),
+eval {
+    my $what = $client->get(
+        'Keyspace1',
+        $key,
+        Net::Cassandra::Backend::ColumnPath->new(
+            { column_family => 'Standard1', column => 'name' }
+        ),
+        Net::Cassandra::Backend::ConsistencyLevel::QUORUM
+    );
+    my $value     = $what->column->value;
+    my $timestamp = $what->column->timestamp;
+    warn "$value / $timestamp";
+};
 die $@->why if $@;
-say $column->{columnName}, ', ', $column->{value}, ', ', $column->{timestamp};
 
-my $slice;
-eval { $slice = $client->get_slice( 'Table1', $key, 'Standard1', -1, -1 ); };
+#  list<ColumnOrSuperColumn> get_slice(1:required string keyspace,
+#                                      2:required string key,
+#                                      3:required ColumnParent column_parent,
+#                                      4:required SlicePredicate predicate,
+#                                      5:required ConsistencyLevel consistency_level=1)
+#                              throws (1: InvalidRequestException ire, 3: UnavailableException ue),
+eval {
+    my $what = $client->get_slice(
+        'Keyspace1',
+        $key,
+        Net::Cassandra::Backend::ColumnParent->new(
+            { column_family => 'Standard1' }
+        ),
+        Net::Cassandra::Backend::SlicePredicate->new(
+            {   column_names => ['name'],
+                slice_range  => Net::Cassandra::Backend::SliceRange->new(
+                    { start => '', finish => '', count => 100 }
+                )
+            }
+        ),
+        Net::Cassandra::Backend::ConsistencyLevel::QUORUM
+    );
+    my $value     = $what->[0]->column->value;
+    my $timestamp = $what->[0]->column->timestamp;
+    warn "$value / $timestamp";
+};
 die $@->why if $@;
 
-foreach my $row (@$slice) {
-    say $row->{columnName}, ', ', $row->{timestamp}, ', ', $row->{value};
-}
+#  map<string,ColumnOrSuperColumn> multiget(1:required string keyspace,
+#                                           2:required list<string> keys,
+#                                           3:required ColumnPath column_path,
+#                                           4:required ConsistencyLevel consistency_level=1)
+#                                    throws (1: InvalidRequestException ire, 2: UnavailableException ue),
+eval {
+    my $what = $client->multiget(
+        'Keyspace1',
+        [$key],
+        Net::Cassandra::Backend::ColumnPath->new(
+            { column_family => 'Standard1', column => 'name' }
+        ),
+        Net::Cassandra::Backend::ConsistencyLevel::QUORUM
+    );
+    my $value     = $what->{$key}->column->value;
+    my $timestamp = $what->{$key}->column->timestamp;
+    warn "$value / $timestamp";
+};
+die $@->why if $@;
+
+#  map<string,list<ColumnOrSuperColumn>> multiget_slice(1:required string keyspace,
+#                                                       2:required list<string> keys,
+#                                                       3:required ColumnParent column_parent,
+#                                                       4:required SlicePredicate predicate,
+#                                                       5:required ConsistencyLevel consistency_level=1)
+#                                          throws (1: InvalidRequestException ire, 2: UnavailableException ue),
+eval {
+    my $what = $client->multiget_slice(
+        'Keyspace1',
+        [$key],
+        Net::Cassandra::Backend::ColumnParent->new(
+            { column_family => 'Standard1' }
+        ),
+        Net::Cassandra::Backend::SlicePredicate->new(
+            {   column_names => ['name'],
+                slice_range  => Net::Cassandra::Backend::SliceRange->new(
+                    { start => '', finish => '', count => 100 }
+                )
+            }
+        ),
+        Net::Cassandra::Backend::ConsistencyLevel::QUORUM
+    );
+    my $value     = $what->{$key}->[0]->column->value;
+    my $timestamp = $what->{$key}->[0]->column->timestamp;
+    warn "$value / $timestamp";
+};
+die $@->why if $@;
+
+#  i32 get_count(1:required string keyspace,
+#                2:required string key,
+#                3:required ColumnParent column_parent,
+#                4:required ConsistencyLevel consistency_level=1)
+#      throws (1: InvalidRequestException ire, 2: UnavailableException ue),
+eval {
+    my $what = $client->get_count(
+        'Keyspace1',
+        $key,
+        Net::Cassandra::Backend::ColumnParent->new(
+            { column_family => 'Standard1' }
+        ),
+        Net::Cassandra::Backend::ConsistencyLevel::QUORUM
+    );
+    warn "$what columns";
+};
+die $@->why if $@;
+
+#  list<string> get_key_range(1:required string keyspace,
+#                             2:required string column_family,
+#                             3:required string start="",
+#                             4:required string finish="",
+#                             5:required i32 count=100,
+#                             6:required ConsistencyLevel consistency_level=1)
+#               throws (1: InvalidRequestException ire, 2: UnavailableException ue),
+eval {
+    my $what
+        = $client->get_key_range( 'Keyspace1', 'Standard1', '', '', 100,
+        Net::Cassandra::Backend::ConsistencyLevel::QUORUM );
+    warn "Keys: ", join( ', ', @$what );
+};
+warn $@->why if $@;
+
+#  void remove(1:required string keyspace,
+#              2:required string key,
+#              3:required ColumnPath column_path,
+#              4:required i64 timestamp,
+#              5:ConsistencyLevel consistency_level=0)
+#       throws (1: InvalidRequestException ire, 2: UnavailableException ue),
+eval {
+    $client->remove(
+        'Keyspace1',
+        $key,
+        Net::Cassandra::Backend::ColumnPath->new(
+            { column_family => 'Standard1', column => 'name' }
+        ),
+        $timestamp
+    );
+};
+die $@->why if $@;

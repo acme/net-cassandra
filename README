@@ -2,32 +2,57 @@ NAME
     Net::Cassandra - Interface to Cassandra
 
 SYNOPSIS
-      my $cassandra = Net::Cassandra->new;
+      my $cassandra = Net::Cassandra->new( hostname => 'localhost' );
       my $client    = $cassandra->client;
 
       my $key       = '123';
       my $timestamp = time;
 
       eval {
-          $client->insert( 'Table1', $key, 'Standard1:name', 'Leon Brocard',
-              $timestamp, 0 );
+          $client->insert(
+              'Keyspace1',
+              $key,
+              Net::Cassandra::Backend::ColumnPath->new(
+                  { column_family => 'Standard1', column => 'name' }
+              ),
+              'Leon Brocard',
+              $timestamp,
+              Net::Cassandra::Backend::ConsistencyLevel::ZERO
+          );
       };
       die $@->why if $@;
 
       eval {
-          $client->remove( 'Table1', $key, 'Standard1:age', $timestamp );
+          my $what = $client->get(
+              'Keyspace1',
+              $key,
+              Net::Cassandra::Backend::ColumnPath->new(
+                  { column_family => 'Standard1', column => 'name' }
+              ),
+              Net::Cassandra::Backend::ConsistencyLevel::QUORUM
+          );
+          my $value     = $what->column->value;
+          my $timestamp = $what->column->timestamp;
+          warn "$value / $timestamp";
       };
       die $@->why if $@;
 
-      my $column;
-      eval { $column = $client->get_column( 'Table1', $key, 'Standard1:name' ); };
+      eval {
+          $client->remove(
+              'Keyspace1',
+              $key,
+              Net::Cassandra::Backend::ColumnPath->new(
+                  { column_family => 'Standard1', column => 'name' }
+              ),
+              $timestamp
+          );
+      };
       die $@->why if $@;
-      say $column->{columnName}, ', ', $column->{value}, ', ', $column->{timestamp};
 
 DESCRIPTION
     This module provides an interface the to Cassandra distributed database.
-    It uses the Thrift interface. This is changing rapidly and supports the
-    development version of Cassandra built from Subversion trunk.
+    It uses the Thrift interface. This is changing rapidly and supports
+    version 0.4.2 of Cassandra.
 
 AUTHOR
     Leon Brocard <acme@astray.com>.
