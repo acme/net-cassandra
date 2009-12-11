@@ -1,5 +1,8 @@
 Revision history for Perl module Net::Cassandra:
 
+0.34 Fri Dec 11 15:37:11 GMT 2009
+    - update to version 0.4.2 of Cassandra
+
 0.33 Fri Jul 10 15:23:02 BST 2009
     - inital release
 
