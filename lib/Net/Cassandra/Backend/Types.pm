@@ -12,7 +12,9 @@ package Net::Cassandra::Backend::ConsistencyLevel;
 use constant ZERO => 0;
 use constant ONE => 1;
 use constant QUORUM => 2;
-use constant ALL => 3;
+use constant DCQUORUM => 3;
+use constant DCQUORUMSYNC => 4;
+use constant ALL => 5;
 package Net::Cassandra::Backend::Column;
 use base qw(Class::Accessor);
 Net::Cassandra::Backend::Column->mk_accessors( qw( name value timestamp ) );
@@ -448,6 +450,53 @@ sub write {
   return $xfer;
 }
 
+package Net::Cassandra::Backend::TimedOutException;
+use base qw(Net::Cassandra::Backend::Thrift::TException);
+use base qw(Class::Accessor);
+
+sub new {
+  my $classname = shift;
+  my $self      = {};
+  my $vals      = shift || {};
+  return bless ($self, $classname);
+}
+
+sub getName {
+  return 'TimedOutException';
+}
+
+sub read {
+  my ($self, $input) = @_;
+  my $xfer  = 0;
+  my $fname;
+  my $ftype = 0;
+  my $fid   = 0;
+  $xfer += $input->readStructBegin(\$fname);
+  while (1) 
+  {
+    $xfer += $input->readFieldBegin(\$fname, \$ftype, \$fid);
+    if ($ftype == Net::Cassandra::Backend::TType::STOP) {
+      last;
+    }
+    SWITCH: for($fid)
+    {
+        $xfer += $input->skip($ftype);
+    }
+    $xfer += $input->readFieldEnd();
+  }
+  $xfer += $input->readStructEnd();
+  return $xfer;
+}
+
+sub write {
+  my ($self, $output) = @_;
+  my $xfer   = 0;
+  $xfer += $output->writeStructBegin('TimedOutException');
+  $xfer += $output->writeFieldStop();
+  $xfer += $output->writeStructEnd();
+  return $xfer;
+}
+
 package Net::Cassandra::Backend::ColumnParent;
 use base qw(Class::Accessor);
 Net::Cassandra::Backend::ColumnParent->mk_accessors( qw( column_family super_column ) );
@@ -824,6 +873,107 @@ sub write {
   if (defined $self->{slice_range}) {
     $xfer += $output->writeFieldBegin('slice_range', Net::Cassandra::Backend::TType::STRUCT, 2);
     $xfer += $self->{slice_range}->write($output);
+    $xfer += $output->writeFieldEnd();
+  }
+  $xfer += $output->writeFieldStop();
+  $xfer += $output->writeStructEnd();
+  return $xfer;
+}
+
+package Net::Cassandra::Backend::KeySlice;
+use base qw(Class::Accessor);
+Net::Cassandra::Backend::KeySlice->mk_accessors( qw( key columns ) );
+
+sub new {
+  my $classname = shift;
+  my $self      = {};
+  my $vals      = shift || {};
+  $self->{key} = undef;
+  $self->{columns} = undef;
+  if (UNIVERSAL::isa($vals,'HASH')) {
+    if (defined $vals->{key}) {
+      $self->{key} = $vals->{key};
+    }
+    if (defined $vals->{columns}) {
+      $self->{columns} = $vals->{columns};
+    }
+  }
+  return bless ($self, $classname);
+}
+
+sub getName {
+  return 'KeySlice';
+}
+
+sub read {
+  my ($self, $input) = @_;
+  my $xfer  = 0;
+  my $fname;
+  my $ftype = 0;
+  my $fid   = 0;
+  $xfer += $input->readStructBegin(\$fname);
+  while (1) 
+  {
+    $xfer += $input->readFieldBegin(\$fname, \$ftype, \$fid);
+    if ($ftype == Net::Cassandra::Backend::TType::STOP) {
+      last;
+    }
+    SWITCH: for($fid)
+    {
+      /^1$/ && do{      if ($ftype == Net::Cassandra::Backend::TType::STRING) {
+        $xfer += $input->readString(\$self->{key});
+      } else {
+        $xfer += $input->skip($ftype);
+      }
+      last; };
+      /^2$/ && do{      if ($ftype == Net::Cassandra::Backend::TType::LIST) {
+        {
+          my $_size14 = 0;
+          $self->{columns} = [];
+          my $_etype17 = 0;
+          $xfer += $input->readListBegin(\$_etype17, \$_size14);
+          for (my $_i18 = 0; $_i18 < $_size14; ++$_i18)
+          {
+            my $elem19 = undef;
+            $elem19 = new Net::Cassandra::Backend::ColumnOrSuperColumn();
+            $xfer += $elem19->read($input);
+            push(@{$self->{columns}},$elem19);
+          }
+          $xfer += $input->readListEnd();
+        }
+      } else {
+        $xfer += $input->skip($ftype);
+      }
+      last; };
+        $xfer += $input->skip($ftype);
+    }
+    $xfer += $input->readFieldEnd();
+  }
+  $xfer += $input->readStructEnd();
+  return $xfer;
+}
+
+sub write {
+  my ($self, $output) = @_;
+  my $xfer   = 0;
+  $xfer += $output->writeStructBegin('KeySlice');
+  if (defined $self->{key}) {
+    $xfer += $output->writeFieldBegin('key', Net::Cassandra::Backend::TType::STRING, 1);
+    $xfer += $output->writeString($self->{key});
+    $xfer += $output->writeFieldEnd();
+  }
+  if (defined $self->{columns}) {
+    $xfer += $output->writeFieldBegin('columns', Net::Cassandra::Backend::TType::LIST, 2);
+    {
+      $output->writeListBegin(Net::Cassandra::Backend::TType::STRUCT, scalar(@{$self->{columns}}));
+      {
+        foreach my $iter20 (@{$self->{columns}}) 
+        {
+          $xfer += ${iter20}->write($output);
+        }
+      }
+      $output->writeListEnd();
+    }
     $xfer += $output->writeFieldEnd();
   }
   $xfer += $output->writeFieldStop();

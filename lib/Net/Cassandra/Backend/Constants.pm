@@ -10,4 +10,6 @@ use warnings;
 use Net::Cassandra::Backend::Thrift;
 
 
+use constant VERSION => "0.5.0";
+
 1;

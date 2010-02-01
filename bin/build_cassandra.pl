@@ -15,7 +15,7 @@ my $thrift_trunk_makefile  = file( $thrift_trunk_dir, 'Makefile' );
 my $thrift_trunk_thrift
     = file( $thrift_trunk_dir, 'compiler', 'cpp', 'thrift' );
 my $thrift_installed_dir = dir( cwd, 'thrift' );
-my $cassandra_trunk_dir  = dir( cwd, 'apache-cassandra-incubating-0.4.2-src' );
+my $cassandra_trunk_dir  = dir( cwd, 'apache-cassandra-incubating-0.5.0-src' );
 my $cassandra_class
     = dir( $cassandra_trunk_dir, 'build', 'classes', 'org', 'apache',
     'cassandra', 'service', 'CassandraDaemon.class' );
