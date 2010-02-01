@@ -7,7 +7,7 @@ use Net::Cassandra::Backend::Thrift::Socket;
 use Net::Cassandra::Backend::Thrift::BufferedTransport;
 use Net::Cassandra::Backend::Thrift::BinaryProtocol;
 
-our $VERSION = '0.34';
+our $VERSION = '0.35';
 
 has 'hostname' => ( is => 'ro', isa => 'Str', default => 'localhost' );
 has 'port'     => ( is => 'ro', isa => 'Int', default => 9160 );
@@ -97,7 +97,7 @@ Net::Cassandra - Interface to Cassandra
 
 This module provides an interface the to Cassandra distributed database.
 It uses the Thrift interface. This is changing rapidly and supports
-version 0.4.2 of Cassandra.
+version 0.5.0 of Cassandra.
 
 =head1 AUTHOR
 
@@ -105,7 +105,7 @@ Leon Brocard <acme@astray.com>.
 
 =head1 COPYRIGHT
 
-Copyright (C) 2009, Leon Brocard
+Copyright (C) 2009-2010, Leon Brocard
 
 =head1 LICENSE
 

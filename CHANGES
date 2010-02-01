@@ -1,6 +1,6 @@
 Revision history for Perl module Net::Cassandra:
 
-0.35
+0.35 Mon Feb  1 10:14:41 GMT 2010
     - update to version 0.5.0 of Cassandra
     - add supercolumn examples to examples/simple.pl
 
